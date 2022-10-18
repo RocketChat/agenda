@@ -168,10 +168,10 @@ describe("Job", () => {
       expect(job.computeNextRunAt()).to.be(job);
     });
 
-    it("sets to undefined if no repeat at", () => {
+    it("sets to null if no repeat at", () => {
       job.attrs.repeatAt = null;
       job.computeNextRunAt();
-      expect(job.attrs.nextRunAt).to.be(undefined);
+      expect(job.attrs.nextRunAt).to.be(null);
     });
 
     it("it understands repeatAt times", () => {
@@ -185,10 +185,10 @@ describe("Job", () => {
       expect(job.attrs.nextRunAt.getMinutes()).to.be(d.getMinutes());
     });
 
-    it("sets to undefined if no repeat interval", () => {
+    it("sets to null if no repeat interval", () => {
       job.attrs.repeatInterval = null;
       job.computeNextRunAt();
-      expect(job.attrs.nextRunAt).to.be(undefined);
+      expect(job.attrs.nextRunAt).to.be(null);
     });
 
     it("it understands human intervals", () => {
@@ -712,7 +712,7 @@ describe("Job", () => {
     });
   });
 
-  describe("start/stop", () => {
+  describe("start/stop/drain", () => {
     it("starts/stops the job queue", async () => {
       // @TODO: this lint issue should be looked into: https://eslint.org/docs/rules/no-async-promise-executor
       // eslint-disable-next-line no-async-promise-executor
@@ -771,6 +771,28 @@ describe("Job", () => {
       await agenda.stop();
       const job = await agenda._collection.findOne({ name: "longRunningJob" });
       expect(job.lockedAt).to.be(null);
+    });
+
+    it("clears current running job on drain", async () => {
+      const tasks = [];
+      agenda.define("longRunningJob", (job, cb) => {
+        tasks.push(cb);
+      });
+      agenda.every("10 seconds", "longRunningJob");
+      agenda.processEvery("1 second");
+
+      await agenda.start();
+      await delay(jobTimeout);
+
+      setTimeout(()=> {
+        tasks.forEach(cb => cb());
+      }, 10);
+      expect(agenda._runningJobs.length).to.be(1);
+
+      await agenda.drain();
+      const job = await agenda._collection.findOne({ name: "longRunningJob" });
+      expect(job.lockedAt).to.be(null);
+      expect(agenda._runningJobs.length).to.be(0);
     });
 
     describe("events", () => {

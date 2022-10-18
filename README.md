@@ -611,6 +611,23 @@ process.on("SIGTERM", graceful);
 process.on("SIGINT", graceful);
 ```
 
+### drain
+
+Stops the job queue processing and waits till all current jobs finishes.
+
+This can be very useful for graceful shutdowns so that currently running/grabbed jobs are finished before shutting down. Here is an example of how to do a graceful
+shutdown.
+
+```js
+async function graceful() {
+  await agenda.drain();
+  process.exit(0);
+}
+
+process.on("SIGTERM", graceful);
+process.on("SIGINT", graceful);
+```
+
 ### close(force)
 
 Closes database connection. You don't normally have to do this, but it might be useful for testing purposes.
@@ -669,7 +686,7 @@ Specifies an `interval` on which the job should repeat. The job runs at the time
 
 `options.endDate`: `Date` the job should not repeat after the endDate. The job can run on the end-date itself, but not after that.
 
-`options.skipDays`: `humand readable string` ('2 days'). After each run, it will skip the duration of 'skipDays'
+`options.skipDays`: `human readable string` ('2 days'). After each run, it will skip the duration of 'skipDays'
 
 ```js
 job.repeatEvery("10 minutes");
